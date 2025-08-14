@@ -13,3 +13,15 @@ struct Registry_command
     enum Registry_Value_Type reg_value_type;
     std::string completion_message;
 };
+
+enum File_Command_Action{
+    DELETEALL,
+    MOVEALL
+};
+
+struct Directory_Command
+{
+    std::string directory_path;
+    enum File_Command_Action action;
+    std::string completion_message;  
+};

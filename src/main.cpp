@@ -4,7 +4,22 @@
 #include <locale>
 #include <codecvt>
 #include <stdlib.h>
+#include <sstream>
+#include <vector>
+#include <filesystem>
 #include "reg_command.h"
+
+std::vector<std::string> splitString(const std::string& str_to_split, const char& delimeter)
+{
+    std::vector<std::string> tokens; 
+    std::string token;
+    std::istringstream tokenStream(str_to_split);
+    while (std::getline(tokenStream, token, delimeter)){
+        tokens.emplace_back(token);
+    }
+    return tokens;
+} 
+
 
 void setRegValue_regsz(HKEY hKey, const std::string name, const std::string value)
 {
@@ -71,6 +86,23 @@ void RunCommand(const Registry_command command)
 
 }
 
+void RunFileCommand(const Directory_Command command)
+{
+    std::filesystem::path current_directory = command.directory_path;
+
+
+    if (std::filesystem::exists(current_directory))
+    {
+        for(const auto& entry : std::filesystem::directory_iterator(current_directory))
+        {
+            std::filesystem::path outfilename = entry.path();
+            std::cout << outfilename.string();
+            if (command.action == File_Command_Action::DELETEALL){
+                std::filesystem::remove(outfilename);
+            }
+        }
+    }
+}
 
 void ClearDirectory(std::string file_path)
 {
@@ -80,12 +112,21 @@ void ClearDirectory(std::string file_path)
 
 int main(int argc, char* argv[]) 
 {
-    auto reg_command = Registry_command{};
-    reg_command.reg_path = "Software\\Policies\\Microsoft\\Windows\\Explorer";
-    reg_command.reg_value_name = "DisableSearchBoxSuggestions";
-    reg_command.reg_value_data = "1";
-    reg_command.reg_value_type = DOUBLEWORD;
-    reg_command.completion_message = "Edge should be disabled in the windows start bar now. Please restart for changes to take effect.";
+    // auto reg_command = Registry_command{};
+    // reg_command.reg_path = "Software\\Policies\\Microsoft\\Windows\\Explorer";
+    // reg_command.reg_value_name = "DisableSearchBoxSuggestions";
+    // reg_command.reg_value_data = "1";
+    // reg_command.reg_value_type = DOUBLEWORD;
+    // reg_command.completion_message = "Edge should be disabled in the windows start bar now. Please restart for changes to take effect.";
+    //RunCommand(reg_command);
 
-    RunCommand(reg_command);
+    //TODO: build configurable interface. 
+    auto directory_command = Directory_Command();
+    directory_command.action = File_Command_Action::DELETEALL;
+    directory_command.directory_path = "C:\\Test\\Drop";
+    directory_command.completion_message = ""
+
+    RunFileCommand(directory_command);
+    
 }
+

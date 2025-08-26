@@ -1,12 +1,14 @@
+#include <handleapi.h>
 #include <iostream>
+#include <processthreadsapi.h>
+#include <securitybaseapi.h>
 #include <windows.h>
 #include <string>
-#include <locale>
-#include <codecvt>
 #include <stdlib.h>
 #include <sstream>
 #include <vector>
 #include <filesystem>
+#include <winnt.h>
 #include "reg_command.h"
 
 std::vector<std::string> splitString(const std::string& str_to_split, const char& delimeter)
@@ -19,7 +21,6 @@ std::vector<std::string> splitString(const std::string& str_to_split, const char
     }
     return tokens;
 } 
-
 
 void setRegValue_regsz(HKEY hKey, const std::string name, const std::string value)
 {
@@ -47,86 +48,121 @@ void RunCommand(const Registry_command command)
 
     //TODO:Create 
     if (resultQuery == ERROR_FILE_NOT_FOUND)
-    {
+      {
         std::cerr << "Key does not exist. Creating now" << std::endl;
         auto resultCreateQuery =  RegCreateKeyEx(HKEY_CURRENT_USER, command.reg_path.c_str(), 0, NULL, REG_OPTION_NON_VOLATILE, KEY_ALL_ACCESS, NULL, &command_h_key, NULL);
         if (resultCreateQuery != ERROR_SUCCESS)
-        {
+		  {
             LPVOID msgBuf; 
             FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM,
-                NULL, resultQuery, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-                (LPTSTR)&msgBuf,0,NULL);
+						  NULL, resultQuery, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+						  (LPTSTR)&msgBuf,0,NULL);
             std::cout << "There was an error creating the key. Message: " << (char*)msgBuf << std::endl;
-        }
+		  }
 
-    }
+      }
     else if (resultQuery == ERROR_SUCCESS)
-    {
+      {
         if (command.reg_value_type == DOUBLEWORD)
-        {
+		  {
             int val = std::stoi(command.reg_value_data);
             setRegValue_dword(command_h_key, command.reg_value_name, val);
-        }
+		  }
         else if (command.reg_value_type == STRINGZEROTERMINATED){
-            setRegValue_regsz(command_h_key, command.reg_value_name, command.reg_value_data);
+		  setRegValue_regsz(command_h_key, command.reg_value_name, command.reg_value_data);
         }
 
         std::cout << command.completion_message;
-    }
+	
+      }
     else if (resultQuery != ERROR_SUCCESS)
-    {
+      {
         LPVOID msgBuf; 
         FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM,
-            NULL, resultQuery, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-            (LPTSTR)&msgBuf,0,NULL);
+					  NULL, resultQuery, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+					  (LPTSTR)&msgBuf,0,NULL);
         std::cerr << "Key does not exist. Error Message: " << (char*)msgBuf << ": Please make sure you are running with administrative privelages." << std::endl;
-    }
-    
+	  }
+     
     std::cout << "Program has completed." << std::endl;
 
 }
 
-void RunFileCommand(const Directory_Command command)
-{
-    std::filesystem::path current_directory = command.directory_path;
 
-
-    if (std::filesystem::exists(current_directory))
+void ClearDirectory(const std::string& file_path) {
+  std::filesystem::path current_directory = file_path;
+  if (std::filesystem::exists(current_directory))
     {
-        for(const auto& entry : std::filesystem::directory_iterator(current_directory))
+      for(const auto& entry : std::filesystem::directory_iterator(current_directory))
         {
-            std::filesystem::path outfilename = entry.path();
-            std::cout << outfilename.string();
-            if (command.action == File_Command_Action::DELETEALL){
-                std::filesystem::remove(outfilename);
-            }
+		  std::filesystem::path outfilename = entry.path();
+		  std::cout << outfilename.string();
+		  std::filesystem::remove(outfilename);
+		  //We just clear this out
         }
+	} 
+}
+
+void RunFileCommand(const Directory_Command command) {
+  if (command.action == File_Command_Action::DELETEALL) {
+	ClearDirectory(command.directory_path);
+  }    
+}
+
+
+BOOL IsProcessElevated() {
+  BOOL isElevated = false;
+  HANDLE hToken = NULL;
+  TOKEN_ELEVATION elevation;
+  DWORD dwSize;
+
+  if (!OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &hToken)) {
+    if (hToken) {
+	  CloseHandle(hToken);
     }
-}
+  }
 
-void ClearDirectory(std::string file_path)
-{
+  if (!GetTokenInformation(hToken, TokenElevation, &elevation, sizeof(elevation),
+						   &dwSize)) {
 
-
-}
-
-int main(int argc, char* argv[]) 
-{
-    // auto reg_command = Registry_command{};
-    // reg_command.reg_path = "Software\\Policies\\Microsoft\\Windows\\Explorer";
-    // reg_command.reg_value_name = "DisableSearchBoxSuggestions";
-    // reg_command.reg_value_data = "1";
-    // reg_command.reg_value_type = DOUBLEWORD;
-    // reg_command.completion_message = "Edge should be disabled in the windows start bar now. Please restart for changes to take effect.";
-    //RunCommand(reg_command);
-
-    //TODO: build configurable interface. 
-    auto directory_command = Directory_Command();
-    directory_command.action = File_Command_Action::DELETEALL;
-    directory_command.directory_path = "C:\\Test\\Drop";
-    directory_command.completion_message = ""
-
-    RunFileCommand(directory_command);
+    if (hToken) {
+	  CloseHandle(hToken);
+	}      
     
+  }    
+  
+  isElevated = elevation.TokenIsElevated;
+
+  return isElevated;
 }
+
+
+int main(int argc, char *argv[]) {
+
+
+  if (!IsProcessElevated()) {
+	std::cout << "Need to run this in Administration Mode" << std::endl;
+	return 1;
+  }
+ 
+  
+  auto reg_command = Registry_command{};
+  reg_command.reg_path = "Software\\Policies\\Microsoft\\Windows\\Explorer";
+  reg_command.reg_value_name = "DisableSearchBoxSuggestions";
+  reg_command.reg_value_data = "1";
+  reg_command.reg_value_type = DOUBLEWORD;
+  reg_command.completion_message = "Edge should be disabled in the windows start bar now. Please restart for changes to take effect.";
+  RunCommand(reg_command); 
+
+  //  TODO: build configurable interface. 
+  // auto directory_command = Directory_Command();
+  // directory_command.action = File_Command_Action::DELETEALL;
+  // directory_command.directory_path = "C:\\Test\\Drop";
+  // directory_command.completion_message = "";
+  // RunFileCommand(directory_command);
+  
+}
+
+
+
 

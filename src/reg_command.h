@@ -1,3 +1,6 @@
+#pragma once 
+#include <string>
+
 enum Registry_Value_Type
 {
     DOUBLEWORD,

@@ -10,6 +10,7 @@
 #include <filesystem>
 #include <winnt.h>
 #include "reg_command.h"
+#include "strategies.h"
 
 std::vector<std::string> splitString(const std::string& str_to_split, const char& delimeter)
 {
@@ -137,22 +138,29 @@ BOOL IsProcessElevated() {
 }
 
 
+void create_strategies()
+{
+  RunARegistryChange stratTest;
+  auto reg_command = Registry_command{};
+  stratTest.RunCommand(reg_command);
+}
+
 int main(int argc, char *argv[]) {
 
 
-  if (!IsProcessElevated()) {
-	std::cout << "Need to run this in Administration Mode" << std::endl;
-	return 1;
-  }
+  // if (!IsProcessElevated()) {
+	// std::cout << "Need to run this in Administration Mode" << std::endl;
+	// return 1;
+  // }
  
   
-  auto reg_command = Registry_command{};
-  reg_command.reg_path = "Software\\Policies\\Microsoft\\Windows\\Explorer";
-  reg_command.reg_value_name = "DisableSearchBoxSuggestions";
-  reg_command.reg_value_data = "1";
-  reg_command.reg_value_type = DOUBLEWORD;
-  reg_command.completion_message = "Edge should be disabled in the windows start bar now. Please restart for changes to take effect.";
-  RunCommand(reg_command); 
+  // auto reg_command = Registry_command{};
+  // reg_command.reg_path = "Software\\Policies\\Microsoft\\Windows\\Explorer";
+  // reg_command.reg_value_name = "DisableSearchBoxSuggestions";
+  // reg_command.reg_value_data = "1";
+  // reg_command.reg_value_type = DOUBLEWORD;
+  // reg_command.completion_message = "Edge should be disabled in the windows start bar now. Please restart for changes to take effect.";
+  // RunCommand(reg_command); 
 
   //  TODO: build configurable interface. 
   // auto directory_command = Directory_Command();
@@ -160,7 +168,7 @@ int main(int argc, char *argv[]) {
   // directory_command.directory_path = "C:\\Test\\Drop";
   // directory_command.completion_message = "";
   // RunFileCommand(directory_command);
-  
+  create_strategies();
 }
 
 
